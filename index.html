@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medikal DICOM Görüntüleyici Pro</title>
+    <style>
+        :root {
+            --bg-dark: #0f1115;
+            --panel-bg: #181b20;
+            --header-bg: #1e2229;
+            --border-color: #2d333b;
+            --text-main: #e6edf3;
+            --text-muted: #8b949e;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --tag-color: #58a6ff;
+            --name-color: #7ee787;
+            --vr-color: #d2a8ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            height: 58px;
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            flex-shrink: 0;
+        }
+
+        .title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .badge {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--tag-color);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            font-size: 0.72rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .file-info {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            max-width: 280px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-btn {
+            background-color: var(--accent);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .file-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .workspace {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 58px);
+            overflow: hidden;
+        }
+
+        /* Sol Panel: Etiketler */
+        .left-panel {
+            width: 48%;
+            min-width: 380px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .search-box {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 8px 12px;
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 0.88rem;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent);
+        }
+
+        .tag-count {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .tags-container {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            background-color: #21262d;
+            color: var(--text-muted);
+            text-align: left;
+            padding: 9px 10px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 2;
+        }
+
+        td {
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--border-color);
+            word-break: break-word;
+            vertical-align: top;
+        }
+
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        .tag-id {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            color: var(--tag-color);
+            white-space: nowrap;
+        }
+
+        .tag-name {
+            color: var(--name-color);
+            font-weight: 500;
+        }
+
+        .tag-name.unknown {
+            color: var(--text-muted);
+            font-style: italic;
+            font-weight: 400;
+        }
+
+        .tag-vr {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            color: var(--vr-color);
+            white-space: nowrap;
+        }
+
+        /* Sağ Panel: Görüntü */
+        .right-panel {
+            flex: 1;
+            background-color: #000000;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #canvasWrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+        }
+
+        #canvasWrapper:active {
+            cursor: grabbing;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            transform-origin: center center;
+        }
+
+        .placeholder-text {
+            position: absolute;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 20px;
+            max-width: 440px;
+            line-height: 1.5;
+        }
+
+        .controls-hint {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            color: #cbd5e1;
+            font-size: 0.75rem;
+            background: rgba(24, 27, 32, 0.85);
+            border: 1px solid var(--border-color);
+            padding: 6px 10px;
+            border-radius: 6px;
+            display: none;
+            z-index: 5;
+        }
+
+        .reset-btn {
+            background: #2d333b;
+            color: #e6edf3;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+            cursor: pointer;
+            font-size: 0.72rem;
+        }
+
+        .reset-btn:hover {
+            background: #3e4651;
+        }
+
+        .overlay-info {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            color: #e6edf3;
+            font-size: 0.78rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 8px 12px;
+            border-radius: 6px;
+            pointer-events: none;
+            display: none;
+            line-height: 1.45;
+            z-index: 5;
+        }
+
+        /* Multi-Frame Kontrol Çubuğu */
+        .cine-bar {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(24, 27, 32, 0.92);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 8px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            z-index: 6;
+            min-width: 340px;
+            max-width: 90%;
+        }
+
+        .cine-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .cine-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .cine-slider {
+            flex: 1;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .cine-label {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.8rem;
+            color: var(--text-main);
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="title">
+        <span>Medikal DICOM Görüntüleyici Pro</span>
+        <span class="badge">RLE / JPEG / Multi-Frame</span>
+    </div>
+    <div class="header-actions">
+        <span class="file-info" id="fileNameDisplay">Dosya seçilmedi</span>
+        <label for="fileInput" class="file-btn">DICOM Dosyası Aç (.dcm)</label>
+        <input type="file" id="fileInput" accept=".dcm,application/dicom,*/*">
+    </div>
+</header>
+
+<div class="workspace">
+    <!-- Sol Taraf: Etiketler -->
+    <div class="left-panel">
+        <div class="search-box">
+            <input type="text" id="tagSearch" placeholder="Tag ID, Etiket Adı veya Değer ara (örn: PatientName, 0010, CT)...">
+            <span class="tag-count" id="tagCount">0 etiket</span>
+        </div>
+        <div class="tags-container">
+            <table id="tagsTable">
+                <thead>
+                    <tr>
+                        <th style="width: 105px;">Tag ID</th>
+                        <th style="width: 185px;">Etiket Adı</th>
+                        <th style="width: 45px;">VR</th>
+                        <th>Değer (Value)</th>
+                    </tr>
+                </thead>
+                <tbody id="tagsBody">
+                    <tr>
+                        <td colspan="4" style="text-align:center; color:#8b949e; padding: 36px;">
+                            DICOM etiketlerini ve görüntüyü incelemek için sağ üstten bir dosya seçin.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Sağ Taraf: Görüntü -->
+    <div class="right-panel" id="rightPanel">
+        <div class="placeholder-text" id="placeholder">
+            <p style="font-size: 1.15rem; color: #e6edf3; margin-bottom: 6px;">Görüntü Alanı</p>
+            <p style="font-size: 0.85rem;">Seçilen DICOM dosyasındaki sıkıştırılmamış, RLE veya JPEG görüntüler ve çok kesitli (multi-frame) seriler burada gösterilir.</p>
+        </div>
+        <div class="overlay-info" id="overlayInfo"></div>
+        <div class="controls-hint" id="controlsHint">
+            Sol Tık + Sürükle: W/L | Tekerlek: Kesit / Shift+Tekerlek: Zoom
+            <button class="reset-btn" id="resetViewBtn">Sıfırla</button>
+        </div>
+        <div id="canvasWrapper">
+            <canvas id="dicomCanvas" style="display:none;"></canvas>
+        </div>
+        <div class="cine-bar" id="cineBar">
+            <button class="cine-btn" id="playPauseBtn">Oynat</button>
+            <input type="range" class="cine-slider" id="frameSlider" min="0" max="0" value="0">
+            <span class="cine-label" id="frameLabel">1 / 1</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Kapsamlı Standart DICOM Etiket Sözlüğü
+    const DICOM_DICT = {
+        "0002,0000": "FileMetaInformationGroupLength",
+        "0002,0001": "FileMetaInformationVersion",
+        "0002,0002": "MediaStorageSOPClassUID",
+        "0002,0003": "MediaStorageSOPInstanceUID",
+        "0002,0010": "TransferSyntaxUID",
+        "0002,0012": "ImplementationClassUID",
+        "0002,0013": "ImplementationVersionName",
+        "0002,0016": "SourceApplicationEntityTitle",
+        "0008,0005": "SpecificCharacterSet",
+        "0008,0008": "ImageType",
+        "0008,0012": "InstanceCreationDate",
+        "0008,0013": "InstanceCreationTime",
+        "0008,0016": "SOPClassUID",
+        "0008,0018": "SOPInstanceUID",
+        "0008,0020": "StudyDate",
+        "0008,0021": "SeriesDate",
+        "0008,0022": "AcquisitionDate",
+        "0008,0023": "ContentDate",
+        "0008,0030": "StudyTime",
+        "0008,0031": "SeriesTime",
+        "0008,0032": "AcquisitionTime",
+        "0008,0033": "ContentTime",
+        "0008,0050": "AccessionNumber",
+        "0008,0060": "Modality",
+        "0008,0061": "ModalitiesInStudy",
+        "0008,0064": "ConversionType",
+        "0008,0070": "Manufacturer",
+        "0008,0080": "InstitutionName",
+        "0008,0081": "InstitutionAddress",
+        "0008,0090": "ReferringPhysicianName",
+        "0008,1010": "StationName",
+        "0008,1030": "StudyDescription",
+        "0008,103E": "SeriesDescription",
+        "0008,1040": "InstitutionalDepartmentName",
+        "0008,1050": "PerformingPhysicianName",
+        "0008,1070": "OperatorsName",
+        "0008,1090": "ManufacturerModelName",
+        "0008,2111": "DerivationDescription",
+        "0010,0010": "PatientName",
+        "0010,0020": "PatientID",
+        "0010,0021": "IssuerOfPatientID",
+        "0010,0030": "PatientBirthDate",
+        "0010,0032": "PatientBirthTime",
+        "0010,0040": "PatientSex",
+        "0010,1000": "OtherPatientIDs",
+        "0010,1010": "PatientAge",
+        "0010,1020": "PatientSize",
+        "0010,1030": "PatientWeight",
+        "0010,2160": "EthnicGroup",
+        "0010,21B0": "AdditionalPatientHistory",
+        "0010,4000": "PatientComments",
+        "0018,0015": "BodyPartExamined",
+        "0018,0020": "ScanningSequence",
+        "0018,0021": "SequenceVariant",
+        "0018,0022": "ScanOptions",
+        "0018,0023": "MRAcquisitionType",
+        "0018,0050": "SliceThickness",
+        "0018,0060": "KVP",
+        "0018,0080": "RepetitionTime",
+        "0018,0081": "EchoTime",
+        "0018,0082": "InversionTime",
+        "0018,0083": "NumberOfAverages",
+        "0018,0084": "ImagingFrequency",
+        "0018,0087": "MagneticFieldStrength",
+        "0018,0088": "SpacingBetweenSlices",
+        "0018,0091": "EchoTrainLength",
+        "0018,0095": "PixelBandwidth",
+        "0018,1000": "DeviceSerialNumber",
+        "0018,1020": "SoftwareVersions",
+        "0018,1030": "ProtocolName",
+        "0018,1110": "DistanceSourceToDetector",
+        "0018,1111": "DistanceSourceToPatient",
+        "0018,1120": "GantryDetectorTilt",
+        "0018,1130": "TableHeight",
+        "0018,1150": "ExposureTime",
+        "0018,1151": "XRayTubeCurrent",
+        "0018,1152": "Exposure",
+        "0018,1160": "FilterType",
+        "0018,1314": "FlipAngle",
+        "0018,5100": "PatientPosition",
+        "0020,000D": "StudyInstanceUID",
+        "0020,000E": "SeriesInstanceUID",
+        "0020,0010": "StudyID",
+        "0020,0011": "SeriesNumber",
+        "0020,0012": "AcquisitionNumber",
+        "0020,0013": "InstanceNumber",
+        "0020,0020": "PatientOrientation",
+        "0020,0032": "ImagePositionPatient",
+        "0020,0037": "ImageOrientationPatient",
+        "0020,0052": "FrameOfReferenceUID",
+        "0020,1040": "PositionReferenceIndicator",
+        "0020,1041": "SliceLocation",
+        "0028,0002": "SamplesPerPixel",
+        "0028,0004": "PhotometricInterpretation",
+        "0028,0006": "PlanarConfiguration",
+        "0028,0008": "NumberOfFrames",
+        "0028,0009": "FrameIncrementPointer",
+        "0028,0010": "Rows",
+        "0028,0011": "Columns",
+        "0028,0030": "PixelSpacing",
+        "0028,0034": "PixelAspectRatio",
+        "0028,0100": "BitsAllocated",
+        "0028,0101": "BitsStored",
+        "0028,0102": "HighBit",
+        "0028,0103": "PixelRepresentation",
+        "0028,0106": "SmallestImagePixelValue",
+        "0028,0107": "LargestImagePixelValue",
+        "0028,1050": "WindowCenter",
+        "0028,1051": "WindowWidth",
+        "0028,1052": "RescaleIntercept",
+        "0028,1053": "RescaleSlope",
+        "0028,1054": "RescaleType",
+        "0028,2110": "LossyImageCompression",
+        "0040,0244": "PerformedProcedureStepStartDate",
+        "0040,0245": "PerformedProcedureStepStartTime",
+        "0040,0254": "PerformedProcedureStepDescription",
+        "7FE0,0010": "PixelData"
+    };
+
+    const TRANSFER_SYNTAX_NAMES = {
+        "1.2.840.10008.1.2": "Implicit VR Little Endian",
+        "1.2.840.10008.1.2.1": "Explicit VR Little Endian",
+        "1.2.840.10008.1.2.2": "Explicit VR Big Endian",
+        "1.2.840.10008.1.2.5": "RLE Lossless",
+        "1.2.840.10008.1.2.4.50": "JPEG Baseline (Process 1)",
+        "1.2.840.10008.1.2.4.51": "JPEG Extended (Process 2 & 4)",
+        "1.2.840.10008.1.2.4.57": "JPEG Lossless",
+        "1.2.840.10008.1.2.4.70": "JPEG Lossless First-Order",
+        "1.2.840.10008.1.2.4.90": "JPEG 2000 Lossless",
+        "1.2.840.10008.1.2.4.91": "JPEG 2000"
+    };
+
+    const fileInput = document.getElementById('fileInput');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const tagsBody = document.getElementById('tagsBody');
+    const tagSearch = document.getElementById('tagSearch');
+    const tagCount = document.getElementById('tagCount');
+    const placeholder = document.getElementById('placeholder');
+    const overlayInfo = document.getElementById('overlayInfo');
+    const controlsHint = document.getElementById('controlsHint');
+    const resetViewBtn = document.getElementById('resetViewBtn');
+    const canvas = document.getElementById('dicomCanvas');
+    const ctx = canvas.getContext('2d');
+    const rightPanel = document.getElementById('rightPanel');
+
+    const cineBar = document.getElementById('cineBar');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const frameSlider = document.getElementById('frameSlider');
+    const frameLabel = document.getElementById('frameLabel');
+
+    let allParsedTags = [];
+    let currentImageState = null;
+    let cineTimer = null;
+
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        stopCine();
+        fileNameDisplay.textContent = file.name;
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                parseDicomBuffer(event.target.result);
+            } catch (err) {
+                console.error(err);
+                alert("DICOM dosyası ayrıştırılırken hata oluştu: " + err.message);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    function parseDicomBuffer(arrayBuffer) {
+        const view = new DataView(arrayBuffer);
+        const bytes = new Uint8Array(arrayBuffer);
+        let offset = 0;
+
+        let hasPreamble = false;
+        if (bytes.length > 132 &&
+            bytes[128] === 0x44 && bytes[129] === 0x49 &&
+            bytes[130] === 0x43 && bytes[131] === 0x4D) {
+            hasPreamble = true;
+            offset = 132;
+        }
+
+        const explicitVRs = new Set([
+            'AE','AS','AT','CS','DA','DS','DT','FL','FD','IS','LO','LT',
+            'OB','OD','OF','OL','OW','PN','SH','SL','SQ','SS','ST','TM',
+            'UC','UI','UL','UN','UR','US','UT'
+        ]);
+
+        const longVRs = new Set(['OB','OD','OF','OL','OW','SQ','UC','UR','UT','UN']);
+
+        let isLittleEndian = true;
+        let isImplicitVR = false;
+        let transferSyntax = '';
+
+        const tags = [];
+        const meta = {
+            rows: 0,
+            cols: 0,
+            bitsAllocated: 8,
+            bitsStored: 8,
+            pixelRepresentation: 0,
+            samplesPerPixel: 1,
+            planarConfiguration: 0,
+            photometric: 'MONOCHROME2',
+            numberOfFrames: 1,
+            windowCenter: null,
+            windowWidth: null,
+            rescaleSlope: 1,
+            rescaleIntercept: 0,
+            modality: '',
+            patientName: '',
+            pixelDataOffset: -1,
+            pixelDataLength: 0,
+            isEncapsulated: false,
+            fragments: []
+        };
+
+        const textDecoder = new TextDecoder('utf-8', { fatal: false });
+
+        function readUint16(pos, le) { return view.getUint16(pos, le); }
+        function readInt16(pos, le) { return view.getInt16(pos, le); }
+        function readUint32(pos, le) { return view.getUint32(pos, le); }
+        function readInt32(pos, le) { return view.getInt32(pos, le); }
+
+        function decodeString(start, len) {
+            if (len <= 0) return '';
+            const slice = bytes.subarray(start, start + len);
+            return textDecoder.decode(slice).replace(/\0/g, '').trim();
+        }
+
+        function parseSequence(endOffset, le, implicit) {
+            while (offset < endOffset && offset + 8 <= bytes.length) {
+                const itemGroup = readUint16(offset, le);
+                const itemElem = readUint16(offset + 2, le);
+                const itemLen = readUint32(offset + 4, le);
+                offset += 8;
+
+                if (itemGroup === 0xFFFE && itemElem === 0xE0DD) {
+                    break;
+                }
+                if (itemGroup === 0xFFFE && itemElem === 0xE000) {
+                    if (itemLen === 0xFFFFFFFF) {
+                        parseItemsUndefined(le, implicit);
+                    } else {
+                        offset += itemLen;
+                    }
+                }
+            }
+        }
+
+        function parseItemsUndefined(le, implicit) {
+            while (offset + 8 <= bytes.length) {
+                const g = readUint16(offset, le);
+                const e = readUint16(offset + 2, le);
+                if (g === 0xFFFE && e === 0xE00D) {
+                    const l = readUint32(offset + 4, le);
+                    offset += 8 + (l === 0xFFFFFFFF ? 0 : l);
+                    break;
+                }
+                if (g === 0xFFFE && e === 0xE0DD) {
+                    offset += 8;
+                    break;
+                }
+                readSingleElement(le, implicit, true);
+            }
+        }
+
+        function readEncapsulatedFragments() {
+            const fragments = [];
+            let isFirstItem = true;
+            while (offset + 8 <= bytes.length) {
+                const g = readUint16(offset, true);
+                const e = readUint16(offset + 2, true);
+                const len = readUint32(offset + 4, true);
+                offset += 8;
+
+                if (g === 0xFFFE && e === 0xE0DD) {
+                    break;
+                }
+                if (g === 0xFFFE && e === 0xE000) {
+                    if (isFirstItem) {
+                        isFirstItem = false;
+                        offset += len; // Basic Offset Table
+                    } else {
+                        fragments.push(bytes.subarray(offset, offset + len));
+                        offset += len;
+                    }
+                } else {
+                    break;
+                }
+            }
+            return fragments;
+        }
+
+        function readSingleElement(le, implicit, insideSeq = false) {
+            if (offset + 8 > bytes.length) {
+                offset = bytes.length;
+                return;
+            }
+
+            const group = readUint16(offset, le);
+            const element = readUint16(offset + 2, le);
+            const tagHex = group.toString(16).padStart(4, '0').toUpperCase() + ',' +
+                           element.toString(16).padStart(4, '0').toUpperCase();
+
+            let vr = '';
+            let length = 0;
+            let headerSize = 8;
+
+            if (group === 0xFFFE) {
+                length = readUint32(offset + 4, le);
+                offset += 8 + (length === 0xFFFFFFFF ? 0 : length);
+                return;
+            }
+
+            const useExplicit = (group === 0x0002) ? true : !implicit;
+
+            if (useExplicit) {
+                const c1 = String.fromCharCode(bytes[offset + 4]);
+                const c2 = String.fromCharCode(bytes[offset + 5]);
+                const candidateVR = c1 + c2;
+
+                if (explicitVRs.has(candidateVR)) {
+                    vr = candidateVR;
+                    if (longVRs.has(vr)) {
+                        if (offset + 12 > bytes.length) { offset = bytes.length; return; }
+                        length = readUint32(offset + 8, le);
+                        headerSize = 12;
+                    } else {
+                        length = readUint16(offset + 6, le);
+                        headerSize = 8;
+                    }
+                } else {
+                    vr = 'UN';
+                    length = readUint32(offset + 4, le);
+                    headerSize = 8;
+                }
+            } else {
+                vr = 'IM';
+                length = readUint32(offset + 4, le);
+                headerSize = 8;
+            }
+
+            const valueOffset = offset + headerSize;
+
+            if (tagHex === '7FE0,0010') {
+                if (length === 0xFFFFFFFF) {
+                    meta.isEncapsulated = true;
+                    offset = valueOffset;
+                    meta.fragments = readEncapsulatedFragments();
+                    if (!insideSeq) {
+                        tags.push({
+                            id: '(7FE0,0010)',
+                            name: DICOM_DICT[tagHex] || 'PixelData',
+                            vr: vr,
+                            value: `[Sıkıştırılmış Görüntü Verisi - ${meta.fragments.length} parça]`
+                        });
+                    }
+                } else {
+                    meta.pixelDataOffset = valueOffset;
+                    meta.pixelDataLength = length;
+                    if (!insideSeq) {
+                        tags.push({
+                            id: '(7FE0,0010)',
+                            name: DICOM_DICT[tagHex] || 'PixelData',
+                            vr: vr,
+                            value: `[Görüntü Piksel Verisi - ${length.toLocaleString('tr-TR')} byte]`
+                        });
+                    }
+                    offset = valueOffset + length;
+                }
+                return;
+            }
+
+            if (vr === 'SQ' || length === 0xFFFFFFFF) {
+                if (!insideSeq) {
+                    tags.push({
+                        id: `(${tagHex})`,
+                        name: DICOM_DICT[tagHex] || 'Bilinmeyen Etiket',
+                        vr: vr === 'IM' ? 'SQ' : vr,
+                        value: '[Sequence / Alt Veri Grubu]'
+                    });
+                }
+                offset = valueOffset;
+                if (length === 0xFFFFFFFF) {
+                    parseItemsUndefined(le, implicit);
+                } else {
+                    parseSequence(valueOffset + length, le, implicit);
+                }
+                return;
+            }
+
+            if (valueOffset + length > bytes.length) {
+                offset = bytes.length;
+                return;
+            }
+
+            let displayVal = '';
+            try {
+                if (vr === 'US' && length >= 2) {
+                    const vals = [];
+                    for (let i = 0; i + 2 <= length; i += 2) vals.push(readUint16(valueOffset + i, le));
+                    displayVal = vals.join(' \\ ');
+                } else if (vr === 'SS' && length >= 2) {
+                    const vals = [];
+                    for (let i = 0; i + 2 <= length; i += 2) vals.push(readInt16(valueOffset + i, le));
+                    displayVal = vals.join(' \\ ');
+                } else if (vr === 'UL' && length >= 4) {
+                    const vals = [];
+                    for (let i = 0; i + 4 <= length; i += 4) vals.push(readUint32(valueOffset + i, le));
+                    displayVal = vals.join(' \\ ');
+                } else if (vr === 'SL' && length >= 4) {
+                    const vals = [];
+                    for (let i = 0; i + 4 <= length; i += 4) vals.push(readInt32(valueOffset + i, le));
+                    displayVal = vals.join(' \\ ');
+                } else if (vr === 'FL' && length >= 4) {
+                    displayVal = view.getFloat32(valueOffset, le).toFixed(4);
+                } else if (vr === 'FD' && length >= 8) {
+                    displayVal = view.getFloat64(valueOffset, le).toFixed(4);
+                } else if (['OB', 'OW', 'UN', 'OF', 'OD'].includes(vr) && length > 64) {
+                    displayVal = `[Binary Veri - ${length} byte]`;
+                } else {
+                    if (vr === 'IM' && length === 2 && ['0028,0002','0028,0010','0028,0011','0028,0100','0028,0101','0028,0102','0028,0103'].includes(tagHex)) {
+                        displayVal = String(readUint16(valueOffset, le));
+                    } else {
+                        displayVal = decodeString(valueOffset, length);
+                        if (tagHex === '0002,0010' && TRANSFER_SYNTAX_NAMES[displayVal]) {
+                            transferSyntax = displayVal;
+                            displayVal = `${displayVal} (${TRANSFER_SYNTAX_NAMES[displayVal]})`;
+                        }
+                    }
+                }
+            } catch (e) {
+                displayVal = `[Okunamayan Veri - ${length} byte]`;
+            }
+
+            if (!insideSeq) {
+                const rawStr = decodeString(valueOffset, Math.min(length, 128));
+                switch (tagHex) {
+                    case '0002,0010':
+                        transferSyntax = rawStr;
+                        if (transferSyntax === '1.2.840.10008.1.2') {
+                            isImplicitVR = true;
+                            isLittleEndian = true;
+                        } else if (transferSyntax === '1.2.840.10008.1.2.2') {
+                            isImplicitVR = false;
+                            isLittleEndian = false;
+                        } else {
+                            isImplicitVR = false;
+                            isLittleEndian = true;
+                        }
+                        break;
+                    case '0008,0060': meta.modality = rawStr; break;
+                    case '0010,0010': meta.patientName = rawStr; break;
+                    case '0028,0002': meta.samplesPerPixel = length === 2 ? readUint16(valueOffset, le) : parseInt(rawStr) || 1; break;
+                    case '0028,0004': meta.photometric = rawStr; break;
+                    case '0028,0006': meta.planarConfiguration = length === 2 ? readUint16(valueOffset, le) : parseInt(rawStr) || 0; break;
+                    case '0028,0008': meta.numberOfFrames = Math.max(1, parseInt(rawStr) || 1); break;
+                    case '0028,0010': meta.rows = length === 2 ? readUint16(valueOffset, le) : parseInt(rawStr) || 0; break;
+                    case '0028,0011': meta.cols = length === 2 ? readUint16(valueOffset, le) : parseInt(rawStr) || 0; break;
+                    case '0028,0100': meta.bitsAllocated = length === 2 ? readUint16(valueOffset, le) : parseInt(rawStr) || 8; break;
+                    case '0028,0101': meta.bitsStored = length === 2 ? readUint16(valueOffset, le) : parseInt(rawStr) || 8; break;
+                    case '0028,0103': meta.pixelRepresentation = length === 2 ? readUint16(valueOffset, le) : parseInt(rawStr) || 0; break;
+                    case '0028,1050':
+                        const wc = parseFloat(rawStr.split('\\')[0]);
+                        if (!isNaN(wc)) meta.windowCenter = wc;
+                        break;
+                    case '0028,1051':
+                        const ww = parseFloat(rawStr.split('\\')[0]);
+                        if (!isNaN(ww)) meta.windowWidth = ww;
+                        break;
+                    case '0028,1052':
+                        const ri = parseFloat(rawStr);
+                        if (!isNaN(ri)) meta.rescaleIntercept = ri;
+                        break;
+                    case '0028,1053':
+                        const rs = parseFloat(rawStr);
+                        if (!isNaN(rs)) meta.rescaleSlope = rs;
+                        break;
+                }
+
+                tags.push({
+                    id: `(${tagHex})`,
+                    name: DICOM_DICT[tagHex] || 'Bilinmeyen Etiket',
+                    vr: vr === 'IM' ? '-' : vr,
+                    value: displayVal
+                });
+            }
+
+            offset = valueOffset + length;
+        }
+
+        if (!hasPreamble && bytes.length > 6) {
+            const c1 = String.fromCharCode(bytes[4]);
+            const c2 = String.fromCharCode(bytes[5]);
+            if (!explicitVRs.has(c1 + c2)) {
+                isImplicitVR = true;
+            }
+        }
+
+        while (offset < bytes.length) {
+            const currentGroup = readUint16(offset, isLittleEndian);
+            if (currentGroup === 0x0002) {
+                readSingleElement(true, false, false);
+            } else {
+                readSingleElement(isLittleEndian, isImplicitVR, false);
+            }
+        }
+
+        allParsedTags = tags;
+        tagSearch.value = '';
+        renderTags(allParsedTags);
+
+        prepareAndRenderImage(arrayBuffer, meta, transferSyntax, isLittleEndian);
+    }
+
+    function renderTags(tags) {
+        tagCount.textContent = `${tags.length} etiket`;
+        tagsBody.innerHTML = '';
+        if (tags.length === 0) {
+            tagsBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#8b949e;">Eşleşen etiket bulunamadı.</td></tr>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        tags.forEach(item => {
+            const tr = document.createElement('tr');
+            const isUnknown = item.name === 'Bilinmeyen Etiket';
+            tr.innerHTML = `
+                <td class="tag-id">${item.id}</td>
+                <td class="tag-name ${isUnknown ? 'unknown' : ''}">${item.name}</td>
+                <td class="tag-vr">${item.vr}</td>
+                <td>${escapeHtml(item.value)}</td>
+            `;
+            fragment.appendChild(tr);
+        });
+        tagsBody.appendChild(fragment);
+    }
+
+    tagSearch.addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase();
+        const filtered = allParsedTags.filter(t =>
+            t.id.toLowerCase().includes(term) ||
+            t.name.toLowerCase().includes(term) ||
+            t.value.toLowerCase().includes(term) ||
+            t.vr.toLowerCase().includes(term)
+        );
+        renderTags(filtered);
+    });
+
+    // DICOM RLE Lossless Çözücü (Annex G)
+    function decodeRLEFrame(rleBytes, rows, cols, bitsAllocated, samplesPerPixel, pixelRepresentation) {
+        const view = new DataView(rleBytes.buffer, rleBytes.byteOffset, rleBytes.byteLength);
+        const numSegments = view.getUint32(0, true);
+        const offsets = [];
+        for (let i = 0; i < numSegments; i++) {
+            offsets.push(view.getUint32(4 + i * 4, true));
+        }
+
+        const numPixels = rows * cols;
+        const segments = [];
+
+        for (let s = 0; s < numSegments; s++) {
+            const start = offsets[s];
+            const end = (s + 1 < numSegments) ? offsets[s + 1] : rleBytes.length;
+            const segOut = new Uint8Array(numPixels);
+            let outIdx = 0;
+            let inIdx = start;
+
+            while (inIdx < end && outIdx < numPixels) {
+                const n = (rleBytes[inIdx] << 24) >> 24; // signed int8
+                inIdx++;
+                if (n >= 0 && n <= 127) {
+                    const count = n + 1;
+                    for (let k = 0; k < count && inIdx < end && outIdx < numPixels; k++) {
+                        segOut[outIdx++] = rleBytes[inIdx++];
+                    }
+                } else if (n >= -127 && n <= -1) {
+                    const count = -n + 1;
+                    const val = rleBytes[inIdx++];
+                    for (let k = 0; k < count && outIdx < numPixels; k++) {
+                        segOut[outIdx++] = val;
+                    }
+                }
+            }
+            segments.push(segOut);
+        }
+
+        if (samplesPerPixel === 3 && numSegments >= 3) {
+            const rgb = new Uint8Array(numPixels * 3);
+            for (let i = 0; i < numPixels; i++) {
+                rgb[i * 3] = segments[0][i];
+                rgb[i * 3 + 1] = segments[1][i];
+                rgb[i * 3 + 2] = segments[2][i];
+            }
+            return { data: rgb, isRGB: true };
+        }
+
+        if (bitsAllocated <= 8) {
+            return { data: segments[0], isRGB: false };
+        }
+
+        // 16-bit RLE: Segment 0 MSB, Segment 1 LSB
+        const out16 = pixelRepresentation === 1 ? new Int16Array(numPixels) : new Uint16Array(numPixels);
+        const msb = segments[0];
+        const lsb = segments[1] || new Uint8Array(numPixels);
+        for (let i = 0; i < numPixels; i++) {
+            out16[i] = (msb[i] << 8) | lsb[i];
+        }
+        return { data: out16, isRGB: false };
+    }
+
+    async function prepareAndRenderImage(arrayBuffer, meta, transferSyntax, isLittleEndian) {
+        const hasUncompressed = meta.pixelDataOffset !== -1 && meta.pixelDataLength > 0;
+        const hasEncapsulated = meta.isEncapsulated && meta.fragments.length > 0;
+
+        if ((!hasUncompressed && !hasEncapsulated) || meta.rows === 0 || meta.cols === 0) {
+            canvas.style.display = 'none';
+            overlayInfo.style.display = 'none';
+            controlsHint.style.display = 'none';
+            cineBar.style.display = 'none';
+            placeholder.style.display = 'block';
+            placeholder.innerHTML = `<p style="color:#f85149; font-size:1.05rem; margin-bottom:6px;">Görüntü Verisi Bulunamadı</p>
+                                     <p style="font-size:0.85rem;">Bu DICOM dosyası yalnızca rapor/meta veri içeriyor veya desteklenmeyen bir yapıda.</p>`;
+            return;
+        }
+
+        const isRLE = transferSyntax === '1.2.840.10008.1.2.5';
+        const isJPEG = transferSyntax.startsWith('1.2.840.10008.1.2.4.');
+
+        if (meta.isEncapsulated && !isRLE && !isJPEG) {
+            canvas.style.display = 'none';
+            overlayInfo.style.display = 'none';
+            controlsHint.style.display = 'none';
+            cineBar.style.display = 'none';
+            placeholder.style.display = 'block';
+            placeholder.innerHTML = `<p style="color:#d29922; font-size:1.05rem; margin-bottom:6px;">Desteklenmeyen Sıkıştırma</p>
+                                     <p style="font-size:0.85rem;">Transfer Syntax (${transferSyntax}) tarayıcıda doğrudan çözülemiyor.</p>`;
+            return;
+        }
+
+        const frames = [];
+        const numPixels = meta.rows * meta.cols;
+
+        try {
+            if (isRLE) {
+                const count = Math.min(meta.numberOfFrames, meta.fragments.length);
+                for (let f = 0; f < count; f++) {
+                    const decoded = decodeRLEFrame(
+                        meta.fragments[f], meta.rows, meta.cols,
+                        meta.bitsAllocated, meta.samplesPerPixel, meta.pixelRepresentation
+                    );
+                    frames.push({ type: decoded.isRGB ? 'rgb' : 'raw', data: decoded.data });
+                }
+            } else if (isJPEG) {
+                for (let f = 0; f < meta.fragments.length; f++) {
+                    const frag = meta.fragments[f];
+                    if (frag.length > 2 && frag[0] === 0xFF && frag[1] === 0xD8) {
+                        const blob = new Blob([frag], { type: 'image/jpeg' });
+                        const bmp = await createImageBitmap(blob);
+                        frames.push({ type: 'bitmap', bitmap: bmp });
+                    }
+                }
+                if (frames.length === 0) {
+                    throw new Error("JPEG 2000 veya JPEG Lossless tarayıcı tarafından yerel olarak desteklenmiyor.");
+                }
+            } else {
+                // Sıkıştırılmamış (Uncompressed)
+                const bytesPerSample = meta.bitsAllocated <= 8 ? 1 : 2;
+                const frameByteSize = numPixels * meta.samplesPerPixel * bytesPerSample;
+                const maxFrames = Math.max(1, Math.min(meta.numberOfFrames, Math.floor(meta.pixelDataLength / frameByteSize)));
+
+                for (let f = 0; f < maxFrames; f++) {
+                    const frameOffset = meta.pixelDataOffset + f * frameByteSize;
+                    if (meta.samplesPerPixel === 3) {
+                        const rawBytes = new Uint8Array(arrayBuffer, frameOffset, numPixels * 3);
+                        let rgbData = rawBytes;
+                        if (meta.planarConfiguration === 1) {
+                            rgbData = new Uint8Array(numPixels * 3);
+                            for (let i = 0; i < numPixels; i++) {
+                                rgbData[i * 3] = rawBytes[i];
+                                rgbData[i * 3 + 1] = rawBytes[numPixels + i];
+                                rgbData[i * 3 + 2] = rawBytes[numPixels * 2 + i];
+                            }
+                        }
+                        frames.push({ type: 'rgb', data: rgbData });
+                    } else if (meta.bitsAllocated <= 8) {
+                        const raw = meta.pixelRepresentation === 1
+                            ? new Int8Array(arrayBuffer, frameOffset, numPixels)
+                            : new Uint8Array(arrayBuffer, frameOffset, numPixels);
+                        frames.push({ type: 'raw', data: raw });
+                    } else {
+                        const raw = meta.pixelRepresentation === 1
+                            ? new Int16Array(numPixels)
+                            : new Uint16Array(numPixels);
+                        const dv = new DataView(arrayBuffer, frameOffset, numPixels * 2);
+                        for (let i = 0; i < numPixels; i++) {
+                            raw[i] = meta.pixelRepresentation === 1
+                                ? dv.getInt16(i * 2, isLittleEndian)
+                                : dv.getUint16(i * 2, isLittleEndian);
+                        }
+                        frames.push({ type: 'raw', data: raw });
+                    }
+                }
+            }
+        } catch (err) {
+            canvas.style.display = 'none';
+            overlayInfo.style.display = 'none';
+            controlsHint.style.display = 'none';
+            cineBar.style.display = 'none';
+            placeholder.style.display = 'block';
+            placeholder.innerHTML = `<p style="color:#d29922; font-size:1.05rem; margin-bottom:6px;">Görüntü Çözülemedi</p>
+                                     <p style="font-size:0.85rem;">${escapeHtml(err.message)}</p>`;
+            return;
+        }
+
+        // İlk kesitten otomatik Window Center / Width hesapla
+        let wc = meta.windowCenter;
+        let ww = meta.windowWidth;
+
+        if (wc === null || ww === null || ww <= 0) {
+            if (frames[0].type === 'raw') {
+                const raw = frames[0].data;
+                let min = Infinity, max = -Infinity;
+                for (let i = 0; i < raw.length; i++) {
+                    const val = raw[i] * meta.rescaleSlope + meta.rescaleIntercept;
+                    if (val < min) min = val;
+                    if (val > max) max = val;
+                }
+                ww = Math.max(1, max - min);
+                wc = min + ww / 2;
+            } else {
+                wc = 128;
+                ww = 256;
+            }
+        }
+
+        const fitScale = Math.min(
+            (rightPanel.clientWidth - 40) / meta.cols,
+            (rightPanel.clientHeight - 90) / meta.rows,
+            2.5
+        );
+
+        currentImageState = {
+            meta,
+            frames,
+            currentFrame: 0,
+            wc,
+            ww,
+            defaultWc: wc,
+            defaultWw: ww,
+            scale: Math.max(0.2, fitScale),
+            defaultScale: Math.max(0.2, fitScale)
+        };
+
+        canvas.width = meta.cols;
+        canvas.height = meta.rows;
+        canvas.style.display = 'block';
+        placeholder.style.display = 'none';
+        overlayInfo.style.display = 'block';
+        controlsHint.style.display = 'block';
+
+        if (frames.length > 1) {
+            cineBar.style.display = 'flex';
+            frameSlider.min = 0;
+            frameSlider.max = frames.length - 1;
+            frameSlider.value = 0;
+            frameLabel.textContent = `1 / ${frames.length}`;
+        } else {
+            cineBar.style.display = 'none';
+        }
+
+        drawCurrentFrame();
+    }
+
+    function drawCurrentFrame() {
+        if (!currentImageState) return;
+        const { meta, frames, currentFrame, wc, ww, scale } = currentImageState;
+        const frame = frames[currentFrame];
+
+        canvas.style.transform = `scale(${scale})`;
+
+        if (frame.type === 'bitmap') {
+            ctx.filter = `brightness(${(128 / Math.max(1, wc)) * 100}%) contrast(${(256 / Math.max(1, ww)) * 100}%)`;
+            ctx.drawImage(frame.bitmap, 0, 0, meta.cols, meta.rows);
+            ctx.filter = 'none';
+        } else {
+            const imgData = ctx.createImageData(meta.cols, meta.rows);
+            const data = imgData.data;
+            const numPixels = meta.rows * meta.cols;
+            const invert = meta.photometric === 'MONOCHROME1';
+
+            if (frame.type === 'rgb') {
+                const rgb = frame.data;
+                for (let i = 0; i < numPixels; i++) {
+                    const p = i * 4;
+                    const s = i * 3;
+                    data[p] = rgb[s];
+                    data[p + 1] = rgb[s + 1];
+                    data[p + 2] = rgb[s + 2];
+                    data[p + 3] = 255;
+                }
+            } else {
+                const raw = frame.data;
+                const lower = wc - 0.5 - (ww - 1) / 2;
+                const upper = wc - 0.5 + (ww - 1) / 2;
+                const range = Math.max(1, upper - lower);
+                const slope = meta.rescaleSlope;
+                const intercept = meta.rescaleIntercept;
+
+                for (let i = 0; i < numPixels; i++) {
+                    const val = raw[i] * slope + intercept;
+                    let norm;
+                    if (val <= lower) norm = 0;
+                    else if (val > upper) norm = 255;
+                    else norm = ((val - lower) / range) * 255;
+
+                    if (invert) norm = 255 - norm;
+
+                    const p = i * 4;
+                    data[p] = norm;
+                    data[p + 1] = norm;
+                    data[p + 2] = norm;
+                    data[p + 3] = 255;
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        const frameText = frames.length > 1 ? `<br>Kesit: ${currentFrame + 1} / ${frames.length}` : '';
+        overlayInfo.innerHTML = `
+            Hasta: ${escapeHtml(meta.patientName || 'Bilinmiyor')}<br>
+            Modalite: ${escapeHtml(meta.modality || '-')} | ${meta.cols}x${meta.rows} px (${meta.bitsStored}-bit)<br>
+            W/L: ${Math.round(ww)} / ${Math.round(wc)} | Zoom: ${(scale * 100).toFixed(0)}%${frameText}
+        `;
+    }
+
+    function setFrame(idx) {
+        if (!currentImageState) return;
+        const total = currentImageState.frames.length;
+        const target = ((idx % total) + total) % total;
+        currentImageState.currentFrame = target;
+        frameSlider.value = target;
+        frameLabel.textContent = `${target + 1} / ${total}`;
+        drawCurrentFrame();
+    }
+
+    frameSlider.addEventListener('input', function(e) {
+        stopCine();
+        setFrame(parseInt(e.target.value));
+    });
+
+    function stopCine() {
+        if (cineTimer) {
+            clearInterval(cineTimer);
+            cineTimer = null;
+            playPauseBtn.textContent = 'Oynat';
+        }
+    }
+
+    playPauseBtn.addEventListener('click', function() {
+        if (!currentImageState || currentImageState.frames.length <= 1) return;
+        if (cineTimer) {
+            stopCine();
+        } else {
+            playPauseBtn.textContent = 'Durdur';
+            cineTimer = setInterval(() => {
+                setFrame(currentImageState.currentFrame + 1);
+            }, 100);
+        }
+    });
+
+    // Fare Etkileşimleri (Parlaklık/Kontrast, Kesit Geçişi ve Yakınlaştırma)
+    let isDragging = false;
+    let lastX = 0, lastY = 0;
+
+    rightPanel.addEventListener('mousedown', function(e) {
+        if (!currentImageState || e.target.closest('.cine-bar') || e.target.closest('.controls-hint')) return;
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', function(e) {
+        if (!isDragging || !currentImageState) return;
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+        lastX = e.clientX;
+        lastY = e.clientY;
+
+        const step = Math.max(1, currentImageState.defaultWw / 250);
+        currentImageState.ww = Math.max(1, currentImageState.ww + dx * step);
+        currentImageState.wc += dy * step;
+        drawCurrentFrame();
+    });
+
+    window.addEventListener('mouseup', function() {
+        isDragging = false;
+    });
+
+    rightPanel.addEventListener('wheel', function(e) {
+        if (!currentImageState) return;
+        e.preventDefault();
+
+        if (e.shiftKey || currentImageState.frames.length <= 1) {
+            const factor = e.deltaY < 0 ? 1.12 : 0.88;
+            currentImageState.scale = Math.min(15, Math.max(0.1, currentImageState.scale * factor));
+            drawCurrentFrame();
+        } else {
+            stopCine();
+            const delta = e.deltaY > 0 ? 1 : -1;
+            setFrame(currentImageState.currentFrame + delta);
+        }
+    }, { passive: false });
+
+    resetViewBtn.addEventListener('click', function() {
+        if (!currentImageState) return;
+        currentImageState.wc = currentImageState.defaultWc;
+        currentImageState.ww = currentImageState.defaultWw;
+        currentImageState.scale = currentImageState.defaultScale;
+        drawCurrentFrame();
+    });
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+    }
+</script>
+</body>
+</html>
